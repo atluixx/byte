@@ -26,9 +26,9 @@
 
     "baseUrl": ".",
     "paths": {
-      "root": ["src/*"],
-      "services/*": ["src/services/*"],
-      "commands/*": ["src/commands/*"],
+      "@root/*": ["src/*"],
+      "@services/*": ["src/services/*"],
+      "@commands/*": ["src/commands/*"],
     },
   },
 
