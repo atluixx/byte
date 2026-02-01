@@ -1,21 +1,25 @@
 import fs from 'node:fs';
-import path from 'node:path';
 import { pino } from 'pino';
 import makeWASocket, { useMultiFileAuthState } from '@whiskeysockets/baileys';
-import { AUTH_DIR, CACHE_FILE, NAMES_FILE, STORES_DIR } from '@root/constants';
+import { AUTH_DIR, NAMES_FILE, STORES_DIR } from '@root/constants';
 import type { BotContext } from '@root/core';
-import { database } from '@root/database';
+import { ConfigRepository, database, UserRepository } from '@root/database';
 import { EconomyService, MessageService, RPGService, UserService } from '@root/services';
-import { CacheStore, NameStore } from '@root/stores';
+import { NameStore } from '@root/stores';
 import { gracefulShutdown, handleConnection, logger } from '@root/utils';
+import { CommandService } from './services/CommandService';
 
-if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
-if (!fs.existsSync(STORES_DIR)) fs.mkdirSync(STORES_DIR, { recursive: true });
+[AUTH_DIR, STORES_DIR].forEach((dir) => {
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
+});
 
 const nameStore = new NameStore();
-const cacheStore = new CacheStore();
 
-if (fs.existsSync(NAMES_FILE)) {
+function loadStores() {
+    if (!fs.existsSync(NAMES_FILE)) return;
+
     try {
         const data = JSON.parse(fs.readFileSync(NAMES_FILE, 'utf-8'));
         nameStore.fromJSON(data);
@@ -25,31 +29,14 @@ if (fs.existsSync(NAMES_FILE)) {
     }
 }
 
-if (fs.existsSync(CACHE_FILE)) {
-    try {
-        const data = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf-8'));
-        Object.entries(data).forEach(([key, value]) => cacheStore.set(key, value));
-        logger.info(`Loaded ${cacheStore.size} cache entries from storage`);
-    } catch (err) {
-        logger.error(err, 'Failed to load cache');
-    }
-}
-
 function saveStores() {
     try {
         fs.writeFileSync(NAMES_FILE, JSON.stringify(nameStore.toJSON(), null, 2));
-        const cacheData: Record<string, any> = {};
-        for (const [key, value] of cacheStore.entries()) {
-            cacheData[key] = value;
-        }
-        fs.writeFileSync(CACHE_FILE, JSON.stringify(cacheData, null, 2));
-        logger.info('Stores saved to disk');
+        logger.info('Name store saved to disk');
     } catch (err) {
         logger.error(err, 'Failed to save stores');
     }
 }
-
-setInterval(saveStores, 60_000);
 
 export const bot: BotContext = {
     database,
@@ -59,21 +46,38 @@ export const bot: BotContext = {
         rpg: new RPGService(),
         users: new UserService(),
         messages: new MessageService(),
+        commands: new CommandService(),
+    },
+    repositories: {
+        config: new ConfigRepository(),
+        users: new UserRepository(),
     },
     socket: null,
     stores: {
-        cache: cacheStore,
         names: nameStore,
     },
 };
 
-if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
+function initializeServices() {
+    for (const [name, service] of Object.entries(bot.services)) {
+        if (service && typeof service.init === 'function') {
+            service.init(bot);
+            logger.info(`${name} service initialized`);
+        }
+    }
 
-let socket: ReturnType<typeof makeWASocket>;
-let { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+    for (const [name, repository] of Object.entries(bot.repositories)) {
+        if (repository && typeof repository.init === 'function') {
+            repository.init(bot);
+            logger.info(`${name} repository initialized`);
+        }
+    }
+}
 
-export function createSocket() {
-    socket = makeWASocket({
+export async function createSocket() {
+    const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+
+    const socket = makeWASocket({
         auth: state,
         logger: pino({ level: 'silent' }),
     });
@@ -85,37 +89,45 @@ export function createSocket() {
     socket.ev.on('messages.upsert', (ctx) => {
         bot.services.messages
             .enqueue(ctx)
-            .catch((err: Error) => logger.error(err, 'Failed to process message'));
+            .catch((err: Error) => logger.error({ err }, 'Failed to process message'));
     });
 
-    for (const [name, service] of Object.entries(bot.services)) {
-        service?.init?.(bot);
-        logger.info(`${name} service started`);
-    }
+    initializeServices();
+
+    return socket;
 }
 
-process.on('SIGINT', async () => {
+async function handleShutdown(signal: string) {
+    logger.info(`Received ${signal}, shutting down gracefully...`);
     saveStores();
     await gracefulShutdown(bot);
-});
+    process.exit(0);
+}
 
-process.on('SIGTERM', async () => {
+process.on('SIGINT', () => handleShutdown('SIGINT'));
+process.on('SIGTERM', () => handleShutdown('SIGTERM'));
+
+process.on('uncaughtException', (err) => {
+    logger.fatal(err, 'Uncaught exception - process will exit');
     saveStores();
-    await gracefulShutdown(bot);
+    process.exit(1);
 });
 
-process.on('uncaughtException', async (err) => {
-    logger.error(err, 'Uncaught exception');
-    saveStores();
-    await gracefulShutdown(bot);
-});
-
-process.on('unhandledRejection', async (err) => {
+process.on('unhandledRejection', (err) => {
     logger.error(err, 'Unhandled rejection');
 });
 
-global.console.log = (...args) => logger.info(args);
-global.console.warn = (...args) => logger.warn(args);
-global.console.error = (...args) => logger.error(args);
+setInterval(saveStores, 60_000);
 
-createSocket();
+async function bootstrap() {
+    try {
+        loadStores();
+        await createSocket();
+        logger.info('Bot started successfully');
+    } catch (err) {
+        logger.fatal(err, 'Failed to start bot');
+        process.exit(1);
+    }
+}
+
+bootstrap();

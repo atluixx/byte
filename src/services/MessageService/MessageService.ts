@@ -6,6 +6,7 @@ import type { MessageUpsertType, WAMessage, WAMessageContent } from '@whiskeysoc
 import { MessageQueue } from '@root/services';
 import { downloadMediaMessage } from '@whiskeysockets/baileys';
 import { LOG_DIR, TEMP_DIR } from '@root/constants';
+import { ConfigRepository } from '@root/database';
 
 if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
 if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
@@ -29,9 +30,8 @@ export class MessageService {
         return this.queue.enqueue(ctx);
     }
 
-    private async resolveSender(jid: string | undefined): Promise<string> {
+    private async resolveSender(jid: string | undefined) {
         if (!jid) return 'unknown';
-
         if (jid.includes('@s.whatsapp.net')) return jid;
 
         if (jid.includes('@lid')) {
@@ -56,32 +56,20 @@ export class MessageService {
             const senderJid = m.key.participant || m.key.remoteJidAlt || from;
             const sender = await this.resolveSender(senderJid!);
 
+            // --- stores logic ---
             let senderName = m.pushName || this.context.stores?.names?.get(sender) || sender;
-
             if (m.pushName && sender) {
                 this.context.stores?.names?.set(sender, m.pushName);
-                this.context.stores?.cache?.set(`name:${sender}`, m.pushName);
             }
 
             const now = new Date();
-
             let action = 'sent';
             let text: string | null = null;
 
             if (m.message?.protocolMessage) {
                 const protocolMsg = m.message.protocolMessage;
-
                 if (protocolMsg.type === 0) {
                     action = 'deleted';
-                    logger.info(
-                        {
-                            fullProtocolMsg: protocolMsg,
-                            key: protocolMsg.key,
-                            hasEditedMessage: !!protocolMsg.editedMessage,
-                            editedMessage: protocolMsg.editedMessage,
-                        },
-                        'DEBUG - Deleted Message',
-                    );
                 } else if (protocolMsg.type === 14 && protocolMsg.editedMessage) {
                     action = 'edited';
                     text = this.extractText(protocolMsg.editedMessage as any);
@@ -91,18 +79,41 @@ export class MessageService {
             }
 
             const timestamp = this.formatTimestamp(now);
-            const logLine = `${timestamp} ${senderName} (${sender}) ${action} a message: ${text ?? '[media / unknown]'}\n`;
-            fs.appendFileSync(path.join(LOG_DIR, this.getLogFileName(now)), logLine);
+            fs.appendFileSync(
+                path.join(LOG_DIR, this.getLogFileName(now)),
+                `${timestamp} ${senderName} (${sender}) ${action} a message: ${text ?? '[media / unknown]'}\n`,
+            );
 
             if (action === 'sent') await this.saveMedia(m.message!);
 
             logger.info({ from, sender, senderName, text, action });
+
+            if (from?.endsWith('@g.us') && text) {
+                const groupId = from;
+                const config = await this.context.repositories.config.getConfig(groupId);
+                const prefix = config?.prefix ?? '!';
+
+                if (text.startsWith(prefix)) {
+                    const commandBody = text.slice(prefix.length).trim();
+                    await this.context.services.commands.execute({
+                        groupId,
+                        sender,
+                        senderName,
+                        text: commandBody,
+                        originalText: text,
+                        message: m,
+                    });
+                }
+            }
         }
     }
 
     private formatTimestamp(date: Date): string {
         const pad = (n: number) => n.toString().padStart(2, '0');
-        return `[${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear().toString().slice(2)} ${pad(date.getHours())}:${pad(date.getMinutes())}]`;
+        return `[${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date
+            .getFullYear()
+            .toString()
+            .slice(2)} ${pad(date.getHours())}:${pad(date.getMinutes())}]`;
     }
 
     private getLogFileName(date: Date): string {
@@ -113,18 +124,16 @@ export class MessageService {
     private extractText(message: WAMessageContent | undefined): string | null {
         if (!message) return null;
 
-        const textExtractors: Record<string, () => string | null> = {
-            conversation: () => message.conversation ?? null,
-            extendedTextMessage: () => message.extendedTextMessage?.text ?? null,
-            imageMessage: () => message.imageMessage?.caption ?? null,
-            videoMessage: () => message.videoMessage?.caption ?? null,
-            documentMessage: () => message.documentMessage?.fileName ?? null,
-            stickerMessage: () => '[sticker]',
-        };
-
-        for (const [key, extractor] of Object.entries(textExtractors)) {
-            if (key in message) return extractor();
-        }
+        if ('conversation' in message && message.conversation) return message.conversation;
+        if ('extendedTextMessage' in message && message.extendedTextMessage?.text)
+            return message.extendedTextMessage.text;
+        if ('imageMessage' in message && message.imageMessage?.caption)
+            return message.imageMessage.caption;
+        if ('videoMessage' in message && message.videoMessage?.caption)
+            return message.videoMessage.caption;
+        if ('documentMessage' in message && message.documentMessage?.fileName)
+            return message.documentMessage.fileName;
+        if ('stickerMessage' in message) return '[sticker]';
 
         return null;
     }

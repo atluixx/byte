@@ -1,44 +1,91 @@
 export class NameStore {
-    private names: Map<string, string> = new Map();
+    private jidToName: Map<string, string> = new Map();
+    private nameToJid: Map<string, string> = new Map();
 
     set(jid: string, name: string): void {
-        this.names.set(jid, name);
+        const oldName = this.jidToName.get(jid);
+        if (oldName) {
+            this.nameToJid.delete(oldName.toLowerCase());
+        }
+
+        this.jidToName.set(jid, name);
+        this.nameToJid.set(name.toLowerCase(), jid);
     }
 
     get(jid: string): string | undefined {
-        return this.names.get(jid);
+        return this.jidToName.get(jid);
+    }
+
+    getJIDByName(name: string): string | undefined {
+        return this.nameToJid.get(name.toLowerCase());
     }
 
     has(jid: string): boolean {
-        return this.names.has(jid);
+        return this.jidToName.has(jid);
+    }
+
+    hasName(name: string): boolean {
+        return this.nameToJid.has(name.toLowerCase());
     }
 
     delete(jid: string): boolean {
-        return this.names.delete(jid);
+        const name = this.jidToName.get(jid);
+        if (name) {
+            this.nameToJid.delete(name.toLowerCase());
+        }
+        return this.jidToName.delete(jid);
+    }
+
+    deleteByName(name: string): boolean {
+        const jid = this.nameToJid.get(name.toLowerCase());
+        if (jid) {
+            this.jidToName.delete(jid);
+        }
+        return this.nameToJid.delete(name.toLowerCase());
     }
 
     clear(): void {
-        this.names.clear();
+        this.jidToName.clear();
+        this.nameToJid.clear();
     }
 
     getAll(): Map<string, string> {
-        return new Map(this.names);
+        return new Map(this.jidToName);
     }
 
     get size(): number {
-        return this.names.size;
+        return this.jidToName.size;
     }
 
-    // Export names as JSON
     toJSON(): Record<string, string> {
-        return Object.fromEntries(this.names);
+        return Object.fromEntries(this.jidToName);
     }
 
-    // Import names from JSON
     fromJSON(data: Record<string, string>): void {
-        this.names.clear();
+        this.clear();
         Object.entries(data).forEach(([jid, name]) => {
-            this.names.set(jid, name);
+            this.set(jid, name);
         });
+    }
+
+    searchByName(query: string): Array<{ jid: string; name: string }> {
+        const lowerQuery = query.toLowerCase();
+        const results: Array<{ jid: string; name: string }> = [];
+
+        for (const [jid, name] of this.jidToName) {
+            if (name.toLowerCase().includes(lowerQuery)) {
+                results.push({ jid, name });
+            }
+        }
+
+        return results;
+    }
+
+    getAllNames(): string[] {
+        return Array.from(this.jidToName.values());
+    }
+
+    getAllJIDs(): string[] {
+        return Array.from(this.jidToName.keys());
     }
 }

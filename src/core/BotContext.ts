@@ -1,6 +1,7 @@
-import type { DrizzleDatabase } from '@root/database';
+import type { ConfigRepository, DrizzleDatabase, UserRepository } from '@root/database';
 import type { EconomyService, UserService, RPGService, MessageService } from '@root/services';
-import type { CacheStore, NameStore } from '@root/stores';
+import type { CommandService } from '@root/services/CommandService';
+import type { NameStore } from '@root/stores';
 import type { WASocket } from '@whiskeysockets/baileys';
 
 export type BotContext = {
@@ -12,9 +13,13 @@ export type BotContext = {
         rpg: RPGService;
         economy: EconomyService;
         messages: MessageService;
+        commands: CommandService;
     };
     stores: {
         names: NameStore;
-        cache: CacheStore;
+    };
+    repositories: {
+        users: UserRepository;
+        config: ConfigRepository;
     };
 };
