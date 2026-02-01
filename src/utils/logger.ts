@@ -17,6 +17,8 @@ export const logger = pino({
                 .map((a) => (typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)))
                 .join(' ');
 
+            if (msg.includes('[bun]')) return;
+
             method.call(this, `:: ${ts()} ${label} ➔ ${msg}`);
         },
     },

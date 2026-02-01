@@ -10,10 +10,10 @@
   "type": "module",
   "dependencies": {
     "@hapi/boom": "^10.0.1",
+    "@libsql/client": "^0.17.0",
     "@types/qrcode-terminal": "^0.12.2",
-    "@whiskeysockets/baileys": "^7.0.0-rc.9",
+    "@whiskeysockets/baileys": "7.0.0-rc.9",
     "axios": "^1.13.4",
-    "better-sqlite3": "^12.6.2",
     "chalk": "^5.6.2",
     "dayjs": "^1.11.19",
     "dotenv": "^17.2.3",
