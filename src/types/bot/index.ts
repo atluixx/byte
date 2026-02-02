@@ -1,4 +1,10 @@
-import { type ConfigRepository, type DrizzleDatabase, type UserRepository, type StatsRepository, users } from '@root/database';
+import {
+    type ConfigRepository,
+    type DrizzleDatabase,
+    type UserRepository,
+    users,
+} from '@root/database';
+import type { PlayerStatsRepository } from '@root/database/repositories/PlayerStatsRepository';
 import type { EconomyService, UserService, RPGService, MessageService } from '@root/services';
 import type { CommandService } from '@root/services/CommandService';
 import type { NameStore } from '@root/stores';
@@ -20,9 +26,9 @@ export type BotContext = {
         names: NameStore;
     };
     repositories: {
+        playerStats: PlayerStatsRepository;
         users: UserRepository;
         config: ConfigRepository;
-        stats: StatsRepository;
     };
 };
 
@@ -60,8 +66,7 @@ export abstract class BaseCommand {
         if (!bare) return '';
         if (bare.includes('@lid')) {
             try {
-                const pn =
-                    await bot.socket?.signalRepository?.lidMapping?.getPNForLID?.(jid);
+                const pn = await bot.socket?.signalRepository?.lidMapping?.getPNForLID?.(jid);
                 return pn ? BaseCommand.bareJid(pn) : bare;
             } catch {
                 return bare;
@@ -85,7 +90,10 @@ export abstract class BaseCommand {
                     const participantBare = p.phoneNumber
                         ? BaseCommand.bareJid(p.phoneNumber)
                         : await this.toComparableJid(p.id, bot);
-                    if (participantBare === senderBare && (p.admin === 'admin' || p.admin === 'superadmin')) {
+                    if (
+                        participantBare === senderBare &&
+                        (p.admin === 'admin' || p.admin === 'superadmin')
+                    ) {
                         isUserAdmin = true;
                         break;
                     }
@@ -96,14 +104,18 @@ export abstract class BaseCommand {
             }
 
             if (this.isBotAdminOnly) {
-              const senderBare = await this.toComparableJid(ctx.sender, bot);
+                const senderBare = await this.toComparableJid(ctx.sender, bot);
 
-              const user = await bot.database.select().from(users).where(eq(users.id, senderBare)).get();
+                const user = await bot.database
+                    .select()
+                    .from(users)
+                    .where(eq(users.id, senderBare))
+                    .get();
 
                 if (!user?.isAdmin || !user?.isOwner) {
                     return { ok: false, reason: 'You must be a bot admin to run this command.' };
                 }
-  
+
                 return { ok: true };
             }
         }

@@ -3,7 +3,7 @@ import type { BotContext } from '@root/core';
 
 export class SetPrefixCommand extends BaseCommand {
     override name = 'setprefix';
-    override category = 'admin';
+    override category = 'core';
     override description = 'Changes the prefix used in this group';
     override argsLength = 1;
     override isAdminOnly = true;

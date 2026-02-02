@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "766ef2e3-7b7d-4318-9074-577ec4107970",
+  "id": "0a54efc7-8e5b-4fd0-94c5-6e83a1e885c1",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "group_config": {
@@ -76,7 +76,7 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "default": 1769966013
+          "default": 1770024022
         }
       },
       "indexes": {},
@@ -134,6 +134,22 @@
           "notNull": false,
           "autoincrement": false,
           "default": 0
+        },
+        "bank": {
+          "name": "bank",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "bank_interest": {
+          "name": "bank_interest",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 15
         },
         "class": {
           "name": "class",
@@ -213,7 +229,7 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "default": 1769966013
+          "default": 1770024023
         }
       },
       "indexes": {},

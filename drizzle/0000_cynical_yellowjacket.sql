@@ -9,7 +9,7 @@ CREATE TABLE `users` (
 	`name` text NOT NULL,
 	`is_admin` integer DEFAULT 0,
 	`is_owner` integer DEFAULT 0,
-	`last_active` integer DEFAULT 1769966013
+	`last_active` integer DEFAULT 1770024022
 );
 --> statement-breakpoint
 CREATE TABLE `player_stats` (
@@ -19,6 +19,8 @@ CREATE TABLE `player_stats` (
 	`hp` integer DEFAULT 100,
 	`mp` integer DEFAULT 50,
 	`gold` integer DEFAULT 0,
+	`bank` integer DEFAULT 0,
+	`bank_interest` integer DEFAULT 15,
 	`class` text DEFAULT 'warrior',
 	`strength` integer DEFAULT 10,
 	`defense` integer DEFAULT 10,
@@ -28,6 +30,6 @@ CREATE TABLE `player_stats` (
 	`battles_lost` integer DEFAULT 0,
 	`quests_completed` integer DEFAULT 0,
 	`items_collected` integer DEFAULT 0,
-	`last_active` integer DEFAULT 1769966013,
+	`last_active` integer DEFAULT 1770024023,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
 );

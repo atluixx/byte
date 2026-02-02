@@ -3,11 +3,11 @@ import { pino } from 'pino';
 import makeWASocket, { useMultiFileAuthState } from '@whiskeysockets/baileys';
 import { AUTH_DIR, NAMES_FILE, STORES_DIR } from '@root/constants';
 import type { BotContext } from '@root/core';
-import { ConfigRepository, database, UserRepository, StatsRepository } from '@root/database';
+import { ConfigRepository, database, UserRepository, PlayerStatsRepository } from '@root/database';
 import { EconomyService, MessageService, RPGService, UserService } from '@root/services';
 import { NameStore } from '@root/stores';
 import { gracefulShutdown, handleConnection, logger } from '@root/utils';
-import { CommandService } from './services/CommandService';
+import { CommandService } from '@root/services';
 
 [AUTH_DIR, STORES_DIR].forEach((dir) => {
     if (!fs.existsSync(dir)) {
@@ -49,9 +49,9 @@ export const bot: BotContext = {
         commands: new CommandService(),
     },
     repositories: {
+        playerStats: new PlayerStatsRepository(),
         config: new ConfigRepository(),
         users: new UserRepository(),
-        stats: new StatsRepository(),
     },
     socket: null,
     stores: {
