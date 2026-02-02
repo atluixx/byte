@@ -3,7 +3,7 @@ import { pino } from 'pino';
 import makeWASocket, { useMultiFileAuthState } from '@whiskeysockets/baileys';
 import { AUTH_DIR, NAMES_FILE, STORES_DIR } from '@root/constants';
 import type { BotContext } from '@root/core';
-import { ConfigRepository, database, UserRepository } from '@root/database';
+import { ConfigRepository, database, UserRepository, StatsRepository } from '@root/database';
 import { EconomyService, MessageService, RPGService, UserService } from '@root/services';
 import { NameStore } from '@root/stores';
 import { gracefulShutdown, handleConnection, logger } from '@root/utils';
@@ -51,6 +51,7 @@ export const bot: BotContext = {
     repositories: {
         config: new ConfigRepository(),
         users: new UserRepository(),
+        stats: new StatsRepository(),
     },
     socket: null,
     stores: {

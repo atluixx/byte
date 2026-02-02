@@ -1,1 +1,2 @@
-export * from './commands';
+export * from './bot';
+export * from './rpg';

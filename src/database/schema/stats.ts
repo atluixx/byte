@@ -10,6 +10,8 @@ export const playerStats = sqliteTable('player_stats', {
     hp: integer('hp').default(100),
     mp: integer('mp').default(50),
     coins: integer('gold').default(0),
+    bank: integer('bank').default(0),
+    bankInterest: integer('bank_interest').default(15),
     class: text('class').default('warrior'),
     strength: integer('strength').default(10),
     defense: integer('defense').default(10),

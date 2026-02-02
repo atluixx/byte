@@ -1,4 +1,4 @@
-import { BaseCommand, type CommandContext } from '@root/types';
+import { BaseCommand, type CommandContext } from '@root/types/bot';
 import type { BotContext } from '@root/core';
 
 export class SetPrefixCommand extends BaseCommand {
@@ -7,7 +7,7 @@ export class SetPrefixCommand extends BaseCommand {
     override description = 'Changes the prefix used in this group';
     override argsLength = 1;
     override isAdminOnly = true;
-
+    override aliases = ['prefix'];
     async execute(ctx: CommandContext, bot: BotContext): Promise<void> {
         const newPrefix = ctx.args[0];
 

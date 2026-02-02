@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import type { BotContext } from '@root/core';
 import type { WAMessage } from '@whiskeysockets/baileys';
-import { BaseCommand, type CommandContext } from '@root/types';
+import { BaseCommand, type CommandContext } from '@root/types/bot';
 import { COMMANDS_FOLDER } from '@root/constants';
 
 export class CommandService {
@@ -33,7 +33,11 @@ export class CommandService {
                 for (const CommandClass of exportedClasses) {
                     try {
                         const commandInstance = new CommandClass();
-                        this.commands.set(commandInstance.name.toLowerCase(), commandInstance);
+                        const nameKey = commandInstance.name.toLowerCase();
+                        this.commands.set(nameKey, commandInstance);
+                        for (const alias of commandInstance.aliases ?? []) {
+                            this.commands.set(alias.toLowerCase(), commandInstance);
+                        }
                     } catch (err) {
                         console.warn(`Failed to instantiate command from ${fullPath}:`, err);
                     }
